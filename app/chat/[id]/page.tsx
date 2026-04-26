@@ -7,6 +7,7 @@ import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, doc, g
 import { LANGUAGES, speakText, transcribeAudio } from "@/lib/speech";
 import { translateText } from "@/lib/translate";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { playNotificationSound, requestNotificationPermission, showBrowserNotification } from "@/lib/notify";
 
 interface Message {
   id: string;
@@ -37,6 +38,8 @@ export default function ConversationPage() {
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const prevMessageCountRef = useRef(0);
+  const isFirstLoadRef = useRef(true);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -61,10 +64,34 @@ export default function ConversationPage() {
   }, [id, router]);
 
   useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
     const q = query(collection(db, "conversations", id as string, "messages"), orderBy("createdAt", "asc"));
     return onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
+      const newMessages = snap.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+      setMessages(newMessages);
+
+      if (isFirstLoadRef.current) {
+        isFirstLoadRef.current = false;
+        prevMessageCountRef.current = newMessages.length;
+        return;
+      }
+
+      if (newMessages.length > prevMessageCountRef.current) {
+        const latest = newMessages[newMessages.length - 1];
+        // Ne joue le son que si c'est un message de l'autre personne
+        if (latest.senderId !== auth.currentUser?.uid) {
+          playNotificationSound();
+          showBrowserNotification(
+            latest.senderName || "Nouveau message",
+            latest.translatedText || latest.originalText || (latest.mediaType === "video" ? "📹 Vidéo" : "📷 Photo")
+          );
+        }
+      }
+      prevMessageCountRef.current = newMessages.length;
     });
   }, [id]);
 

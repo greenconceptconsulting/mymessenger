@@ -6,6 +6,7 @@ import { collection, addDoc, query, where, onSnapshot, serverTimestamp, doc, get
 import { useRouter } from "next/navigation";
 import { LANGUAGES } from "@/lib/speech";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { playNotificationSound, requestNotificationPermission, showBrowserNotification } from "@/lib/notify";
 
 const CATEGORIES = ["Tous", "Pro", "Famille", "Amis", "Autre"];
 
@@ -45,6 +46,8 @@ export default function ChatPage() {
   const [activeTab, setActiveTab] = useState("Tous");
   const [categoryMenu, setCategoryMenu] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const prevConvsRef = useRef<Record<string, string>>({});
+  const isFirstLoadRef = useRef(true);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -60,12 +63,32 @@ export default function ChatPage() {
   }, [router]);
 
   useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     const q = query(collection(db, "conversations"), where("participants", "array-contains", user.uid));
     return onSnapshot(q, (snap) => {
       const convs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
       convs.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
       setConversations(convs);
+
+      if (isFirstLoadRef.current) {
+        isFirstLoadRef.current = false;
+        convs.forEach(c => { prevConvsRef.current[c.id] = c.lastMessage; });
+        return;
+      }
+
+      convs.forEach(c => {
+        if (c.lastMessage && c.lastMessage !== prevConvsRef.current[c.id]) {
+          const otherId = c.participants.find(p => p !== user.uid) || "";
+          const otherName = c.participantNames?.[otherId] || "Contact";
+          playNotificationSound();
+          showBrowserNotification(otherName, c.lastMessage);
+          prevConvsRef.current[c.id] = c.lastMessage;
+        }
+      });
     });
   }, [user]);
 
