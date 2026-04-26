@@ -18,7 +18,7 @@ interface Message {
   translatedText: string;
   originalLang: string;
   mediaUrl?: string;
-  mediaType?: "image" | "video";
+  mediaType?: "image" | "video" | "audio";
   createdAt: any;
 }
 
@@ -38,6 +38,9 @@ export default function ConversationPage() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const pendingTranscriptRef = useRef<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const prevMessageCountRef = useRef(0);
@@ -118,7 +121,7 @@ export default function ConversationPage() {
         ...(mediaUrl && { mediaUrl, mediaType }),
         createdAt: serverTimestamp(),
       });
-      const lastMsg = mediaUrl ? (mediaType === "video" ? "📹 Vidéo" : "📷 Photo") : translated;
+      const lastMsg = mediaUrl ? (mediaType === "video" ? "📹 Vidéo" : mediaType === "audio" ? "🎤 Vocal" : "📷 Photo") : translated;
       await updateDoc(doc(db, "conversations", id as string), {
         lastMessage: lastMsg,
         updatedAt: serverTimestamp(),
@@ -163,21 +166,63 @@ export default function ConversationPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function toggleRecording() {
+  async function toggleRecording() {
     if (recording) {
       recognitionRef.current?.stop();
+      mediaRecorderRef.current?.stop();
     } else {
-      const myLangObj = LANGUAGES.find(l => l.code === myLang);
-      if (!myLangObj) return;
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        alert("Accès au microphone refusé.");
+        return;
+      }
+
       setRecording(true);
-      recognitionRef.current = transcribeAudio(
-        myLangObj.speechCode,
-        (transcript) => { sendMessage(transcript); setRecording(false); },
-        () => setRecording(false)
-      );
-      if (!recognitionRef.current) {
-        alert("La reconnaissance vocale n'est pas supportée. Utilisez Safari sur iPhone.");
+      audioChunksRef.current = [];
+      pendingTranscriptRef.current = "";
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "audio/webm";
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        // Attendre que le STT finisse d'envoyer le transcript
+        await new Promise(r => setTimeout(r, 600));
+        const transcript = pendingTranscriptRef.current;
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        setSending(true);
+        try {
+          const audioFile = new File([audioBlob], "voice.mp4", { type: mimeType });
+          const { url } = await uploadToCloudinary(audioFile, "audio");
+          await sendMessage(transcript, url, "audio");
+        } catch {
+          if (transcript) await sendMessage(transcript);
+        }
+        setSending(false);
         setRecording(false);
+      };
+
+      mediaRecorder.start(100);
+
+      const myLangObj = LANGUAGES.find(l => l.code === myLang);
+      if (myLangObj) {
+        recognitionRef.current = transcribeAudio(
+          myLangObj.speechCode,
+          (transcript) => { pendingTranscriptRef.current = transcript; },
+          () => {}
+        );
       }
     }
   }
@@ -260,6 +305,9 @@ export default function ConversationPage() {
                 )}
                 {msg.mediaUrl && msg.mediaType === "video" && (
                   <video src={msg.mediaUrl} controls style={{ width: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />
+                )}
+                {msg.mediaUrl && msg.mediaType === "audio" && (
+                  <audio src={msg.mediaUrl} controls style={{ width: "100%", marginBottom: 6 }} />
                 )}
 
                 {/* Text */}
