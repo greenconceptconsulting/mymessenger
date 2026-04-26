@@ -35,6 +35,7 @@ export default function ConversationPage() {
   const [otherName, setOtherName] = useState("Contact");
   const [otherLang, setOtherLang] = useState("zh");
   const [otherPhoto, setOtherPhoto] = useState<string | undefined>();
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,7 +59,8 @@ export default function ConversationPage() {
       if (otherId) {
         const otherUserDoc = await getDoc(doc(db, "users", otherId));
         if (otherUserDoc.exists()) {
-          setOtherLang(otherUserDoc.data().language || "zh");
+          const savedLang = data.langOverride?.[u.uid];
+          setOtherLang(savedLang || otherUserDoc.data().language || "zh");
           setOtherPhoto(otherUserDoc.data().photoURL);
         }
       }
@@ -180,6 +182,12 @@ export default function ConversationPage() {
     }
   }
 
+  async function changeOtherLang(newLang: string) {
+    setOtherLang(newLang);
+    setShowLangPicker(false);
+    await updateDoc(doc(db, "conversations", id as string), { [`langOverride.${user?.uid}`]: newLang });
+  }
+
   function playMessage(msg: Message) {
     const isMe = msg.senderId === user?.uid;
     const langCode = isMe ? otherLang : myLang;
@@ -202,11 +210,34 @@ export default function ConversationPage() {
             {otherName[0]?.toUpperCase()}
           </div>
         )}
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700 }}>{otherName}</div>
-          <div style={{ fontSize: 11, opacity: 0.8 }}>Vous: {myLangLabel} → Lui: {otherLangLabel}</div>
+          <button
+            onClick={() => setShowLangPicker(v => !v)}
+            style={{ background: "none", border: "none", color: "white", fontSize: 11, opacity: 0.9, cursor: "pointer", padding: 0, textDecoration: "underline dotted" }}
+          >
+            Vous: {myLangLabel} → Lui: {otherLangLabel} ✏️
+          </button>
         </div>
       </div>
+
+      {/* Sélecteur de langue du contact */}
+      {showLangPicker && (
+        <div style={{ background: "white", borderBottom: "1px solid #ddd", padding: "10px 16px", zIndex: 9 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#333" }}>Langue de {otherName} :</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {LANGUAGES.map(l => (
+              <button
+                key={l.code}
+                onClick={() => changeOtherLang(l.code)}
+                style={{ padding: "6px 12px", borderRadius: 16, border: "1px solid #128C7E", background: otherLang === l.code ? "#128C7E" : "white", color: otherLang === l.code ? "white" : "#128C7E", fontSize: 13, cursor: "pointer" }}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
