@@ -164,7 +164,6 @@ export default function ConversationPage() {
   function toggleRecording() {
     if (recording) {
       recognitionRef.current?.stop();
-      setRecording(false);
     } else {
       const myLangObj = LANGUAGES.find(l => l.code === myLang);
       if (!myLangObj) return;
@@ -175,7 +174,7 @@ export default function ConversationPage() {
         () => setRecording(false)
       );
       if (!recognitionRef.current) {
-        alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Safari ou Chrome.");
+        alert("La reconnaissance vocale n'est pas supportée. Utilisez Safari sur iPhone.");
         setRecording(false);
       }
     }

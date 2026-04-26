@@ -32,13 +32,38 @@ export function transcribeAudio(
   if (!SpeechRecognition) return null;
   const recognition = new SpeechRecognition();
   recognition.lang = speechCode;
+  recognition.continuous = true;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
+
+  let accumulated = "";
+  let stopped = false;
+
   recognition.onresult = (event: any) => {
-    const transcript = event.results[0][0].transcript;
-    onResult(transcript);
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        accumulated += event.results[i][0].transcript + " ";
+      }
+    }
   };
-  recognition.onend = onEnd;
+
+  recognition.onend = () => {
+    if (stopped) {
+      if (accumulated.trim()) onResult(accumulated.trim());
+      onEnd();
+    } else {
+      // Redémarre si arrêté involontairement (pause iOS)
+      try { recognition.start(); } catch {}
+    }
+  };
+
+  recognition.stop = (function(originalStop) {
+    return function() {
+      stopped = true;
+      originalStop.call(recognition);
+    };
+  })(recognition.stop.bind(recognition));
+
   recognition.start();
   return recognition;
 }
