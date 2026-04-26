@@ -153,7 +153,10 @@ export default function ChatPage() {
             <div style={{ fontSize: 11, opacity: 0.8 }}>{user.displayName || user.email}</div>
           </div>
         </div>
-        <button onClick={() => signOut(auth)} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>Déconnexion</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => router.push("/translate")} title="Traducteur en direct" style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>🎙️ Direct</button>
+          <button onClick={() => signOut(auth)} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>Déconnexion</button>
+        </div>
       </div>
 
       {/* Language selector */}
