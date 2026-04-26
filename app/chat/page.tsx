@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { LANGUAGES } from "@/lib/speech";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { playNotificationSound, requestNotificationPermission, showBrowserNotification } from "@/lib/notify";
+import { initFCM } from "@/lib/fcm-client";
 
 const CATEGORIES = ["Tous", "Pro", "Famille", "Amis", "Autre"];
 
@@ -53,6 +54,7 @@ export default function ChatPage() {
     return onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/"); return; }
       setUser(u);
+      initFCM(u.uid);
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) {
         setMyLang(userDoc.data().language || "fr");

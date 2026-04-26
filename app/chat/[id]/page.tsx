@@ -8,6 +8,7 @@ import { LANGUAGES, speakText, transcribeAudio } from "@/lib/speech";
 import { translateText } from "@/lib/translate";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { playNotificationSound, requestNotificationPermission, showBrowserNotification } from "@/lib/notify";
+import { initFCM } from "@/lib/fcm-client";
 
 interface Message {
   id: string;
@@ -45,6 +46,7 @@ export default function ConversationPage() {
     return onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/"); return; }
       setUser(u);
+      initFCM(u.uid);
       const userDoc = await getDoc(doc(db, "users", u.uid));
       if (userDoc.exists()) setMyLang(userDoc.data().language || "fr");
 
@@ -114,10 +116,32 @@ export default function ConversationPage() {
         ...(mediaUrl && { mediaUrl, mediaType }),
         createdAt: serverTimestamp(),
       });
+      const lastMsg = mediaUrl ? (mediaType === "video" ? "📹 Vidéo" : "📷 Photo") : translated;
       await updateDoc(doc(db, "conversations", id as string), {
-        lastMessage: mediaUrl ? (mediaType === "video" ? "📹 Vidéo" : "📷 Photo") : translated,
+        lastMessage: lastMsg,
         updatedAt: serverTimestamp(),
       });
+
+      // Envoie notification push au destinataire
+      const convDoc = await getDoc(doc(db, "conversations", id as string));
+      if (convDoc.exists()) {
+        const otherId = convDoc.data().participants.find((p: string) => p !== user.uid);
+        if (otherId) {
+          const otherDoc = await getDoc(doc(db, "users", otherId));
+          const fcmToken = otherDoc.data()?.fcmToken;
+          if (fcmToken) {
+            fetch("/api/notify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                token: fcmToken,
+                title: user.displayName || user.email || "MyMessenger",
+                body: lastMsg || "Nouveau message",
+              }),
+            });
+          }
+        }
+      }
     } catch (e) { console.error(e); }
     setSending(false);
     setText("");
