@@ -17,8 +17,16 @@ export default function TranslatePage() {
   const myLangObj = LANGUAGES.find(l => l.code === myLang)!;
   const theirLangObj = LANGUAGES.find(l => l.code === theirLang)!;
 
+  function unlockSpeech() {
+    // Déverrouille la synthèse vocale sur mobile (doit être appelé depuis un geste utilisateur)
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  }
+
   async function handleSpeak(speaker: "me" | "them") {
     if (recording) return;
+    unlockSpeech();
     const sourceLang = speaker === "me" ? myLang : theirLang;
     const targetLang = speaker === "me" ? theirLang : myLang;
     const sourceLangObj = speaker === "me" ? myLangObj : theirLangObj;
