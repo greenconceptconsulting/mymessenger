@@ -26,6 +26,7 @@ interface Message {
   originalLang: string;
   mediaUrl?: string;
   mediaType?: "image" | "video" | "audio";
+  deleted?: boolean;
   createdAt: any;
 }
 
@@ -64,6 +65,8 @@ export default function ConversationPage() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -407,6 +410,19 @@ export default function ConversationPage() {
     await updateDoc(doc(db, "conversations", id as string), { [`langOverride.${user?.uid}`]: newLang });
   }
 
+  function handleMsgPressStart(msgId: string) {
+    pressTimerRef.current = setTimeout(() => setSelectedMsgId(msgId), 500);
+  }
+
+  function handleMsgPressEnd() {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+  }
+
+  async function deleteMessage(msgId: string) {
+    await updateDoc(doc(db, "conversations", id as string, "messages", msgId), { deleted: true });
+    setSelectedMsgId(null);
+  }
+
   function playMessage(msg: Message) {
     const isMe = msg.senderId === user?.uid;
     const langCode = isMe ? otherLang : myLang;
@@ -520,32 +536,67 @@ export default function ConversationPage() {
           const isMe = msg.senderId === user?.uid;
           return (
             <div key={msg.id} style={{ display: "flex", justifyContent: isMe ? "flex-end" : "flex-start" }}>
-              <div style={{ maxWidth: "75%", background: isMe ? "#DCF8C6" : "white", borderRadius: isMe ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+              <div
+                onTouchStart={() => handleMsgPressStart(msg.id)}
+                onTouchEnd={handleMsgPressEnd}
+                onMouseDown={() => handleMsgPressStart(msg.id)}
+                onMouseUp={handleMsgPressEnd}
+                onMouseLeave={handleMsgPressEnd}
+                style={{ maxWidth: "75%", background: isMe ? "#DCF8C6" : "white", borderRadius: isMe ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", cursor: "pointer", outline: selectedMsgId === msg.id ? "2px solid #128C7E" : "none", userSelect: "none" }}
+              >
                 {!isMe && <div style={{ fontSize: 12, fontWeight: 600, color: "#128C7E", marginBottom: 4 }}>{msg.senderName}</div>}
-                {msg.mediaUrl && msg.mediaType === "image" && <img src={msg.mediaUrl} alt="photo" style={{ width: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
-                {msg.mediaUrl && msg.mediaType === "video" && <video src={msg.mediaUrl} controls style={{ width: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
-                {msg.mediaUrl && msg.mediaType === "audio" && <audio src={msg.mediaUrl} controls style={{ width: "100%", marginBottom: 6 }} />}
-                {msg.originalText && (
+
+                {msg.deleted ? (
+                  <div style={{ color: "#999", fontStyle: "italic", fontSize: 14 }}>🚫 Message supprimé</div>
+                ) : (
                   <>
-                    <div style={{ fontSize: 11, color: "#999", marginBottom: 4 }}>
-                      {isMe ? `Vous (${myLangLabel})` : `Original (${LANGUAGES.find(l => l.code === msg.originalLang)?.label || msg.originalLang})`}
-                    </div>
-                    <div style={{ fontSize: 14, color: "#555", fontStyle: "italic", marginBottom: 6 }}>"{msg.originalText}"</div>
-                    <div style={{ fontSize: 11, color: "#999", marginBottom: 4 }}>
-                      {isMe ? `Traduit en ${otherLangLabel}` : `Traduit en ${myLangLabel}`}
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 500 }}>{msg.translatedText}</div>
+                    {msg.mediaUrl && msg.mediaType === "image" && <img src={msg.mediaUrl} alt="photo" style={{ width: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
+                    {msg.mediaUrl && msg.mediaType === "video" && <video src={msg.mediaUrl} controls style={{ width: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
+                    {msg.mediaUrl && msg.mediaType === "audio" && <audio src={msg.mediaUrl} controls style={{ width: "100%", marginBottom: 6 }} />}
+                    {msg.originalText && (
+                      <>
+                        <div style={{ fontSize: 11, color: "#999", marginBottom: 4 }}>
+                          {isMe ? `Vous (${myLangLabel})` : `Original (${LANGUAGES.find(l => l.code === msg.originalLang)?.label || msg.originalLang})`}
+                        </div>
+                        <div style={{ fontSize: 14, color: "#555", fontStyle: "italic", marginBottom: 6 }}>"{msg.originalText}"</div>
+                        <div style={{ fontSize: 11, color: "#999", marginBottom: 4 }}>
+                          {isMe ? `Traduit en ${otherLangLabel}` : `Traduit en ${myLangLabel}`}
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 500 }}>{msg.translatedText}</div>
+                      </>
+                    )}
+                    {msg.translatedText && (
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                        <button onClick={() => playMessage(msg)} title="Écouter la traduction" style={{ background: "#128C7E", color: "white", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>▶</button>
+                      </div>
+                    )}
                   </>
-                )}
-                {msg.translatedText && (
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-                    <button onClick={() => playMessage(msg)} title="Écouter la traduction" style={{ background: "#128C7E", color: "white", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>▶</button>
-                  </div>
                 )}
               </div>
             </div>
           );
         })}
+
+        {/* Menu suppression message */}
+        {selectedMsgId && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "flex-end" }} onClick={() => setSelectedMsgId(null)}>
+            <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "white", borderRadius: "16px 16px 0 0", padding: 20, boxShadow: "0 -4px 20px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+              <div style={{ width: 36, height: 4, background: "#ddd", borderRadius: 2, margin: "0 auto 16px" }} />
+              <button
+                onClick={() => deleteMessage(selectedMsgId)}
+                style={{ width: "100%", padding: "14px", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#ff3b30", display: "flex", alignItems: "center", gap: 12, borderRadius: 8 }}
+              >
+                🗑️ Supprimer ce message
+              </button>
+              <button
+                onClick={() => setSelectedMsgId(null)}
+                style={{ width: "100%", padding: "14px", background: "#f0f2f5", border: "none", cursor: "pointer", fontSize: 16, color: "#333", borderRadius: 8, marginTop: 8 }}
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
