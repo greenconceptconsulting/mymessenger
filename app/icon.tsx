@@ -7,19 +7,32 @@ export default function Icon() {
   return new ImageResponse(
     <div
       style={{
-        background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+        background: "linear-gradient(145deg, #25D366 0%, #0e7a6e 100%)",
         width: "100%",
         height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: "22%",
-        color: "white",
-        fontSize: 280,
-        fontWeight: 700,
       }}
     >
-      M
+      <svg width="320" height="320" viewBox="0 0 100 100" fill="none">
+        {/* Bulle gauche (blanche) */}
+        <rect x="8" y="18" width="58" height="42" rx="12" fill="white" />
+        <polygon points="16,60 8,74 28,60" fill="white" />
+
+        {/* Bulle droite (blanche semi-transparente) */}
+        <rect x="34" y="42" width="58" height="38" rx="12" fill="rgba(255,255,255,0.4)" />
+        <polygon points="84,80 92,94 72,80" fill="rgba(255,255,255,0.4)" />
+
+        {/* Ondes / lignes de texte dans bulle gauche */}
+        <rect x="18" y="30" width="36" height="5" rx="2.5" fill="#25D366" />
+        <rect x="18" y="42" width="24" height="5" rx="2.5" fill="#25D366" />
+
+        {/* Ondes / lignes de texte dans bulle droite */}
+        <rect x="44" y="54" width="36" height="5" rx="2.5" fill="white" opacity="0.8" />
+        <rect x="44" y="65" width="24" height="5" rx="2.5" fill="white" opacity="0.8" />
+      </svg>
     </div>,
     { ...size }
   );
