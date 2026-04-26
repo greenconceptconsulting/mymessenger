@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { LANGUAGES } from "@/lib/speech";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -72,7 +72,9 @@ export default function ChatPage() {
     if (!user) return;
     const q = query(collection(db, "conversations"), where("participants", "array-contains", user.uid));
     return onSnapshot(q, (snap) => {
-      const convs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
+      const convs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Conversation))
+        .filter(c => !(c as any).deletedFor?.includes(user.uid));
       convs.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
       setConversations(convs);
 
@@ -118,6 +120,12 @@ export default function ChatPage() {
   async function setCategory(convId: string, category: string) {
     const { updateDoc, doc } = await import("firebase/firestore");
     await updateDoc(doc(db, "conversations", convId), { category });
+    setCategoryMenu(null);
+  }
+
+  async function deleteConversation(convId: string) {
+    if (!window.confirm("Supprimer cette conversation de ta liste ?")) return;
+    await updateDoc(doc(db, "conversations", convId), { deletedFor: arrayUnion(user.uid) });
     setCategoryMenu(null);
   }
 
@@ -272,13 +280,18 @@ export default function ChatPage() {
                 <div style={{ position: "relative" }}>
                   <button onClick={(e) => { e.stopPropagation(); setCategoryMenu(categoryMenu === conv.id ? null : conv.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#999", padding: "4px 8px" }}>⋮</button>
                   {categoryMenu === conv.id && (
-                    <div style={{ position: "absolute", right: 0, top: 30, background: "white", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", borderRadius: 10, zIndex: 100, minWidth: 140, overflow: "hidden" }}>
+                    <div style={{ position: "absolute", right: 0, top: 30, background: "white", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", borderRadius: 10, zIndex: 100, minWidth: 160, overflow: "hidden" }}>
                       <div style={{ padding: "8px 14px", fontSize: 12, color: "#999", fontWeight: 600, borderBottom: "1px solid #eee" }}>Classer dans...</div>
                       {CATEGORIES.filter(c => c !== "Tous").map(cat => (
                         <div key={cat} onClick={(e) => { e.stopPropagation(); setCategory(conv.id, cat); }} style={{ padding: "10px 14px", cursor: "pointer", fontSize: 14, background: conv.category === cat ? "#e8f5e9" : "white", color: conv.category === cat ? "#128C7E" : "#333", fontWeight: conv.category === cat ? 600 : 400 }}>
                           {cat}
                         </div>
                       ))}
+                      <div style={{ borderTop: "1px solid #eee" }}>
+                        <div onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }} style={{ padding: "10px 14px", cursor: "pointer", fontSize: 14, color: "#ff3b30", display: "flex", alignItems: "center", gap: 8 }}>
+                          🗑️ Supprimer
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
