@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, doc, getDoc, updateDoc, where } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, doc, getDoc, updateDoc, deleteDoc, where } from "firebase/firestore";
 import { LANGUAGES, speakText, transcribeAudio } from "@/lib/speech";
 import { translateText } from "@/lib/translate";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -411,8 +411,12 @@ export default function ConversationPage() {
   }
 
   async function deleteMessage(msgId: string) {
-    await updateDoc(doc(db, "conversations", id as string, "messages", msgId), { deleted: true });
-    setSelectedMsgId(null);
+    try {
+      await deleteDoc(doc(db, "conversations", id as string, "messages", msgId));
+      setSelectedMsgId(null);
+    } catch (e: any) {
+      alert("Erreur suppression : " + e.message);
+    }
   }
 
   function playMessage(msg: Message) {
