@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import InstallBanner from "@/components/InstallBanner";
+import UpdateChecker from "@/components/UpdateChecker";
 
 export const metadata: Metadata = {
   title: "MyMessenger",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body>
+        <UpdateChecker />
         <InstallBanner />
         {children}
       </body>
