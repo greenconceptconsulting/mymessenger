@@ -161,24 +161,24 @@ export default function ConversationPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function startRecording() {
-    const myLangObj = LANGUAGES.find(l => l.code === myLang);
-    if (!myLangObj) return;
-    setRecording(true);
-    recognitionRef.current = transcribeAudio(
-      myLangObj.speechCode,
-      (transcript) => { sendMessage(transcript); },
-      () => setRecording(false)
-    );
-    if (!recognitionRef.current) {
-      alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Chrome.");
+  function toggleRecording() {
+    if (recording) {
+      recognitionRef.current?.stop();
       setRecording(false);
+    } else {
+      const myLangObj = LANGUAGES.find(l => l.code === myLang);
+      if (!myLangObj) return;
+      setRecording(true);
+      recognitionRef.current = transcribeAudio(
+        myLangObj.speechCode,
+        (transcript) => { sendMessage(transcript); setRecording(false); },
+        () => setRecording(false)
+      );
+      if (!recognitionRef.current) {
+        alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Safari ou Chrome.");
+        setRecording(false);
+      }
     }
-  }
-
-  function stopRecording() {
-    recognitionRef.current?.stop();
-    setRecording(false);
   }
 
   function playMessage(msg: Message) {
@@ -296,10 +296,7 @@ export default function ConversationPage() {
           </button>
         ) : (
           <button
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
+            onClick={toggleRecording}
             style={{ background: recording ? "#ff3b30" : "#25D366", border: "none", borderRadius: "50%", width: 44, height: 44, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s", flexShrink: 0 }}
           >
             {recording ? (
