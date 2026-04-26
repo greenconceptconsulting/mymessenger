@@ -571,28 +571,29 @@ export default function ConversationPage() {
           );
         })}
 
-        {/* Menu suppression message */}
-        {selectedMsgId && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "flex-end" }} onClick={() => setSelectedMsgId(null)}>
-            <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "white", borderRadius: "16px 16px 0 0", padding: 20, boxShadow: "0 -4px 20px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
-              <div style={{ width: 36, height: 4, background: "#ddd", borderRadius: 2, margin: "0 auto 16px" }} />
-              <button
-                onClick={() => deleteMessage(selectedMsgId)}
-                style={{ width: "100%", padding: "14px", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#ff3b30", display: "flex", alignItems: "center", gap: 12, borderRadius: 8 }}
-              >
-                🗑️ Supprimer ce message
-              </button>
-              <button
-                onClick={() => setSelectedMsgId(null)}
-                style={{ width: "100%", padding: "14px", background: "#f0f2f5", border: "none", cursor: "pointer", fontSize: 16, color: "#333", borderRadius: 8, marginTop: 8 }}
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Modal suppression message — au niveau racine pour éviter le bug iOS overflow:auto */}
+      {selectedMsgId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "flex-end" }} onClick={() => setSelectedMsgId(null)}>
+          <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", background: "white", borderRadius: "16px 16px 0 0", padding: 20, boxShadow: "0 -4px 20px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, background: "#ddd", borderRadius: 2, margin: "0 auto 16px" }} />
+            <button
+              onClick={() => deleteMessage(selectedMsgId)}
+              style={{ width: "100%", padding: "14px", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#ff3b30", display: "flex", alignItems: "center", gap: 12, borderRadius: 8 }}
+            >
+              🗑️ Supprimer ce message
+            </button>
+            <button
+              onClick={() => setSelectedMsgId(null)}
+              style={{ width: "100%", padding: "14px", background: "#f0f2f5", border: "none", cursor: "pointer", fontSize: 16, color: "#333", borderRadius: 8, marginTop: 8 }}
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div style={{ background: "#f0f2f5", padding: "10px 12px", display: "flex", gap: 6, alignItems: "center", position: "sticky", bottom: 0 }}>
