@@ -410,14 +410,6 @@ export default function ConversationPage() {
     await updateDoc(doc(db, "conversations", id as string), { [`langOverride.${user?.uid}`]: newLang });
   }
 
-  function handleMsgPressStart(msgId: string) {
-    pressTimerRef.current = setTimeout(() => setSelectedMsgId(msgId), 500);
-  }
-
-  function handleMsgPressEnd() {
-    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-  }
-
   async function deleteMessage(msgId: string) {
     await updateDoc(doc(db, "conversations", id as string, "messages", msgId), { deleted: true });
     setSelectedMsgId(null);
@@ -535,15 +527,17 @@ export default function ConversationPage() {
         {messages.map(msg => {
           const isMe = msg.senderId === user?.uid;
           return (
-            <div key={msg.id} style={{ display: "flex", justifyContent: isMe ? "flex-end" : "flex-start" }}>
-              <div
-                onTouchStart={() => handleMsgPressStart(msg.id)}
-                onTouchEnd={handleMsgPressEnd}
-                onMouseDown={() => handleMsgPressStart(msg.id)}
-                onMouseUp={handleMsgPressEnd}
-                onMouseLeave={handleMsgPressEnd}
-                style={{ maxWidth: "75%", background: isMe ? "#DCF8C6" : "white", borderRadius: isMe ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)", cursor: "pointer", outline: selectedMsgId === msg.id ? "2px solid #128C7E" : "none", userSelect: "none" }}
-              >
+            <div key={msg.id} style={{ display: "flex", justifyContent: isMe ? "flex-end" : "flex-start", alignItems: "center", gap: 6 }}>
+              {/* Bouton ⋮ rouge à gauche */}
+              {!msg.deleted && (
+                <button
+                  onClick={() => setSelectedMsgId(msg.id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#ff3b30", fontSize: 18, padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
+                >
+                  ⋮
+                </button>
+              )}
+              <div style={{ maxWidth: "75%", background: isMe ? "#DCF8C6" : "white", borderRadius: isMe ? "12px 12px 2px 12px" : "12px 12px 12px 2px", padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
                 {!isMe && <div style={{ fontSize: 12, fontWeight: 600, color: "#128C7E", marginBottom: 4 }}>{msg.senderName}</div>}
 
                 {msg.deleted ? (
